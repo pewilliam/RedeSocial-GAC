@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 G = nx.Graph()
 
 # Adicionando vértices ao grafo, representando os usuários da rede social
-usuarios = ['Pedro', 'Pablo', 'Patrick', 'Letícia', 'Laura', 'Théo', 'Maria']
+usuarios = ['Pedro', 'Pablo', 'Patrick', 'Letícia', 'Alexandre', 'Joaquina', 'Laura', 'Théo', 'Maria']
 G.add_nodes_from(usuarios)
 
 # Criando relações de amizade entre os usuários
 amizades = [('Pedro', 'Pablo'), ('Pedro', 'Patrick'), ('Pablo', 'Patrick'),
-            ('Pablo', 'Letícia'), ('Laura', 'Théo'), ('Théo', 'Maria'), ('Maria', 'Laura')]
+            ('Pablo', 'Letícia'), ('Pablo', 'Alexandre'), ('Patrick', 'Joaquina'), ('Laura', 'Théo'), ('Théo', 'Maria'), ('Maria', 'Laura')]
 G.add_edges_from(amizades)
+
 
 # Função para encontrar amigo de amigos
 def amigos_de_amigos(grafo, usuario):
@@ -22,12 +23,13 @@ def amigos_de_amigos(grafo, usuario):
     amigos_de_amigos_set.discard(usuario)
     return amigos_de_amigos_set - amigos
 
+
 # Encontrando os amigos de amigos de Pedro
 pedro = 'Pedro'
 fof_pedro = amigos_de_amigos(G, pedro)
 print(f'Amigos de amigos de {pedro}: {fof_pedro}')
 
-# Encontra comunidades através de árvores geradoras mínimas
+# Encontra comunidades por árvores geradoras mínimas
 comunidades = list(nx.connected_components(G))
 print(f'Comunidades identificadas: {comunidades}')
 
