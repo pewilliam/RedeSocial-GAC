@@ -11,7 +11,7 @@ class User:
         self.friends = set()  # Conjunto de amigos
 
     def __lt__(self, other):
-        # Comparação personalizada para permitir ordenação de usuários
+        # Implemente uma comparação personalizada para permitir ordenação de usuários
         return self.name < other.name
 
 
@@ -37,18 +37,25 @@ def generate_social_network(num_users, max_friends_per_user):
 
 
 # Função auxiliar para encontrar amigos de segundo grau
+# Função auxiliar para encontrar amigos de segundo grau
 def find_second_degree_friends(user, users):
     first_degree_friends = user.friends
     second_degree_friends = set()
 
     for friend in first_degree_friends:
-        second_degree_friends.update(friend.friends)
+        # Adicione amigos de primeiro grau
+        second_degree_friends.add(friend)
 
-    # Remover o próprio usuário, amigos de primeiro grau e amigos de segundo grau
+    for friend in first_degree_friends:
+        # Adicione amigos de segundo grau (excluindo amigos de primeiro grau)
+        second_degree_friends.update(friend.friends - {user} - first_degree_friends)
+
+    # Remover o próprio usuário e amigos de primeiro grau
     second_degree_friends.discard(user)
     second_degree_friends.difference_update(first_degree_friends)
 
     return second_degree_friends
+
 
 
 # Algoritmo de Kruskal para identificar uma árvore geradora mínima
