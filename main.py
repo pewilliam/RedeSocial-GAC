@@ -11,7 +11,7 @@ class User:
         self.friends = set()  # Conjunto de amigos
 
     def __lt__(self, other):
-        # Implemente uma comparação personalizada para permitir ordenação de usuários
+        # Comparação personalizada para permitir ordenação de usuários
         return self.name < other.name
 
 
