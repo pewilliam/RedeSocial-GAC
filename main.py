@@ -3,148 +3,138 @@ from faker import Faker
 
 fake = Faker()
 
-
-# Classe para representar um usuário
 class User:
     def __init__(self, name):
         self.name = name
-        self.friends = set()  # Conjunto de amigos
+        self.friends = set()
 
     def __lt__(self, other):
-        # Comparação personalizada para permitir ordenação de usuários
         return self.name < other.name
 
+class Edge:
+    def __init__(self, user1, user2):
+        self.user1 = user1
+        self.user2 = user2
+        self.distance = 1  # Distância padrão para um grafo não ponderado
 
-# Geração de nomes aleatórios para usuários
 def generate_random_names(num_names):
     names = [fake.name() for _ in range(num_names)]
     return names
 
-
-# Geração de uma rede social simulada com usuários e amizades
-def generate_social_network(num_users, max_friends_per_user):
+def generate_social_network(num_users, max_following_per_user):
     user_names = generate_random_names(num_users)
     users = [User(name) for name in user_names]
 
     for user in users:
-        num_friends = random.randint(1, max_friends_per_user)
-        # Selecionar amigos aleatórios, excluindo o próprio usuário e evitando duplicatas
-        friends = random.sample(users, num_friends)
-        friends = [friend for friend in friends if friend != user]
-        user.friends.update(friends)
+        num_following = random.randint(1, max_following_per_user)
+        following = random.sample(users, num_following)
+
+        for friend in following:
+            if friend != user:
+                user.friends.add(friend)
 
     return users
 
-
-# Função auxiliar para encontrar amigos de segundo grau
-# Função auxiliar para encontrar amigos de segundo grau
-def find_second_degree_friends(user, users):
-    first_degree_friends = user.friends
-    second_degree_friends = set()
-
-    for friend in first_degree_friends:
-        # Adicione amigos de primeiro grau
-        second_degree_friends.add(friend)
-
-    for friend in first_degree_friends:
-        # Adicione amigos de segundo grau (excluindo amigos de primeiro grau)
-        second_degree_friends.update(friend.friends - {user} - first_degree_friends)
-
-    # Remover o próprio usuário e amigos de primeiro grau
-    second_degree_friends.discard(user)
-    second_degree_friends.difference_update(first_degree_friends)
-
-    return second_degree_friends
-
-
-
-# Algoritmo de Kruskal para identificar uma árvore geradora mínima
 def kruskal(users):
     edges = []
+
+    # Mapear cada usuário para um valor numérico único
+    user_to_id = {user: i for i, user in enumerate(users)}
+    id_to_user = {i: user for user, i in user_to_id.items()}
+
+    # Criar uma lista de arestas com base nas conexões de amizade entre os usuários
     for user in users:
         for friend in user.friends:
-            if user < friend:  # Correção aqui
-                edges.append((user, friend))
+            if user < friend:  # Evitar duplicatas
+                edges.append((user_to_id[user], user_to_id[friend]))
 
-    edges.sort()  # Classificar as arestas
-    minimum_spanning_tree = set()
-    parent = {}  # Para evitar ciclos
+    # Classificar as arestas (não necessária para um grafo não ponderado)
+    edges.sort()
 
-    def find(user):
-        if user != parent.setdefault(user, user):
-            parent[user] = find(parent[user])
-        return parent[user]
+    # Implementar o algoritmo de Kruskal para encontrar a árvore de expansão mínima
+    mst = []
+    parent = {i: i for i in range(len(users))}
+
+    def find(node):
+        if parent[node] == node:
+            return node
+        return find(parent[node])
+
+    def union(node1, node2):
+        root1 = find(node1)
+        root2 = find(node2)
+        if root1 != root2:
+            parent[root1] = root2
 
     for edge in edges:
-        user1, user2 = edge
-        if find(user1) != find(user2):
-            minimum_spanning_tree.add(edge)
-            parent[find(user1)] = find(user2)
+        user1, user2 = id_to_user[edge[0]], id_to_user[edge[1]]
+        if find(edge[0]) != find(edge[1]):
+            mst.append((user1, user2))
+            union(edge[0], edge[1])
 
-    return minimum_spanning_tree
+    return mst
 
-
-# Função para identificar comunidades usando árvores geradoras mínimas
-def identify_communities(users, minimum_spanning_tree):
-    # Criar um grafo não direcionado com as arestas da árvore geradora mínima
-    graph = {}
-    for edge in minimum_spanning_tree:
-        user1, user2 = edge
-        if user1.name not in graph:
-            graph[user1.name] = []
-        if user2.name not in graph:
-            graph[user2.name] = []
-        graph[user1.name].append(user2.name)
-        graph[user2.name].append(user1.name)
-
-    # Função para encontrar todas as conexões de um usuário
-    def dfs(node, visited):
-        visited.add(node)
-        connections = [node]
-        for neighbor in graph[node]:
-            if neighbor not in visited:
-                connections.extend(dfs(neighbor, visited))
-        return connections
-
+def detect_communities_kruskal(users, mst):
+    # Usar a árvore de expansão mínima obtida pelo Kruskal para identificar comunidades
+    # Neste caso, cada componente conectado na árvore representa uma comunidade
+    visited = set()
     communities = []
-    visited_nodes = set()
 
-    for user_name in graph.keys():
-        if user_name not in visited_nodes:
-            community = dfs(user_name, set())
+    def dfs(node, community):
+        visited.add(node)
+        community.append(node)
+
+        for edge in mst:
+            if node == edge[0] and edge[1] not in visited:
+                dfs(edge[1], community)
+            elif node == edge[1] and edge[0] not in visited:
+                dfs(edge[0], community)
+
+    for user in users:
+        if user not in visited:
+            community = []
+            dfs(user, community)
             communities.append(community)
-            visited_nodes.update(community)
 
     return communities
 
 
+def find_friends_of_friends(user):
+    friends_of_friends = set()
+
+    for friend in user.friends:
+        for friend_of_friend in friend.friends:
+            if friend_of_friend != user and friend_of_friend not in user.friends:
+                friends_of_friends.add(friend_of_friend)
+
+    return friends_of_friends
+
 if __name__ == "__main__":
-    num_users = 10
-    max_friends_per_user = 3
+    num_users = 6
+    max_following_per_user = 2
 
-    users = generate_social_network(num_users, max_friends_per_user)
+    users = generate_social_network(num_users, max_following_per_user)
 
-    # Mostrar usuários e amizades
     print("Nomes de Usuários:")
     for user in users:
         print(user.name)
 
-    print("\nAmizades:")
+    print("\nRelações:")
     for user in users:
         print(f"{user.name} - {[friend.name for friend in user.friends]}")
 
-    # Encontrando amigos de amigos de um usuário aleatório
-    user_to_search = random.choice(users)
-    friends_of_friends = find_second_degree_friends(user_to_search, users)
-    print(f"\nAmigos de amigos de {user_to_search.name}: {[user.name for user in friends_of_friends]}")
+    # Use o algoritmo de Kruskal para encontrar a árvore de expansão mínima
+    mst = kruskal(users)
 
-    # Identificando árvores geradoras mínimas
-    minimum_spanning_tree = kruskal(users)
+    # Use a árvore de expansão mínima para detectar comunidades
+    communities = detect_communities_kruskal(users, mst)
 
-    # Identificando comunidades
-    communities = identify_communities(users, minimum_spanning_tree)
-
-    # Mostra comunidades identificadas
     print("\nComunidades identificadas:")
-    for i, community_members in enumerate(communities, start=1):
-        print(f"Comunidade {i}: {', '.join(community_members)}")
+    for i, community in enumerate(communities, start=1):
+        print(f"Comunidade {i}: {[user.name for user in community]}")
+
+    print("\nAmigos de Amigos:")
+    for user in users:
+        friends_of_friends = find_friends_of_friends(user)
+        print(f"Amigos de Amigos de {user.name}: {[friend.name for friend in friends_of_friends]}")
+
